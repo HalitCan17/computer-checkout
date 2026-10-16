@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <style>
+        #box { border: 1px solid #000; height: 400px; overflow-y: auto; padding: 8px; margin-bottom: 8px; }
+        .me { color: #0645ad; margin: 6px 0; }
+        .bot { color: #000; margin: 6px 0; }
+        #msg { width: 70%; }
+    </style>
+</head>
+<body>
+    <h1>CHAT</h1>
+    <p><a th:href="@{/}">Employee</a></p>
+
+    <div id="box"></div>
+    <form id="form">
+        <input id="msg" type="text" placeholder="Bir şey yazın..." autocomplete="off">
+        <button type="submit" id="send">Send</button>
+    </form>
+
+    <script>
+        var box = document.getElementById('box');
+        var form = document.getElementById('form');
+        var msg = document.getElementById('msg');
+        var send = document.getElementById('send');
+
+        function add(who, text, cls) {
+            var p = document.createElement('p');
+            p.className = cls;
+            p.textContent = who + ': ' + text;
+            box.appendChild(p);
+            box.scrollTop = box.scrollHeight;
+            return p;
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var text = msg.value.trim();
+            if (!text) { return; }
+            add('Sen', text, 'me');
+            msg.value = '';
+            send.disabled = true;
+            var wait = add('Llama', 'düşünüyor...', 'bot');
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) { wait.textContent = 'Llama: ' + data.reply; })
+            .catch(function () { wait.textContent = 'Llama: bağlantı hatası'; })
+            .finally(function () { send.disabled = false; msg.focus(); });
+        });
+    </script>
+</body>
+</html>

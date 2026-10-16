@@ -16,9 +16,14 @@ public class PageController {
     }
 
     @GetMapping("/")
-    public String index (Model model) {
+    public String index(Model model) {
         model.addAttribute("emps", _service.findAll());
         return "emps";
+    }
+
+    @GetMapping("/chat")
+    public String chat() {
+        return "chat";
     }
 
 }

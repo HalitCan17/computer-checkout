@@ -42,8 +42,16 @@ services:
     ports: ["9864:9864"]
     volumes:
       - hdfs-data:/hadoop/dfs/data
+  
+  ollama:
+    image: ollama/ollama:latest
+    container_name: pro2-ollama
+    ports: ["11434:11434"]
+    volumes:
+      - ollama-data:/root/.ollama
 
 volumes:
   mysql-data:
   hdfs-name:
   hdfs-data:
+  ollama-data:
