@@ -9,7 +9,7 @@ import java.util.List;
 public interface EmpRepository extends JpaRepository<Emp, Integer> {
 
     @Query("""
-        select new com.swe307.pro2.dto.EmpDto(e.empno, e.ename, m.ename, e.sal, e.comm, d.dname, e.img)
+        select new com.swe307.pro2.dto.EmpDto(e.empno, e.ename, e.job, m.ename, e.hiredate, e.sal, e.comm, d.dname, e.img)
         from Emp e
         left join Emp m on e.mgr = m.empno
         join Dept d on e.deptno = d.deptno

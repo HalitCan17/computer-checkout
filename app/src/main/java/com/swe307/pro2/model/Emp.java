@@ -16,7 +16,7 @@ public class Emp {
     private String ename;
     private String job;
     private Integer mgr;
-    private LocalDate hiradate;
+    private LocalDate hiredate;
     private BigDecimal sal;
     private BigDecimal comm;
     private Integer deptno;
