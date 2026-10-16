@@ -15,5 +15,35 @@ services:
     container_name: pro2-redis
     ports: ["6379:6379"]
 
+  
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: pro2-namenode
+    environment:
+      CLUSTER_NAME: pro2
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: 1
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_permissions_enabled: "false"
+      HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check: "false"
+    ports: ["9870:9870", "9000:9000"]
+    volumes:
+      - hdfs-name:/hadoop/dfs/name
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: pro2-datanode
+    depends_on: [namenode]
+    environment:
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: 1
+      HDFS_CONF_dfs_datanode_hostname: localhost
+      SERVICE_PRECONDITION: "namenode:9870"
+    ports: ["9864:9864"]
+    volumes:
+      - hdfs-data:/hadoop/dfs/data
+
 volumes:
   mysql-data:
+  hdfs-name:
+  hdfs-data:

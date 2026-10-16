@@ -31,7 +31,7 @@
             <td th:text="${p.sal}"></td>
             <td th:text="${p.comm}"></td>
             <td th:text="${p.dname}"></td>
-            <td th:text="${p.img}"></td>
+            <td><img style="width:1.5cm;" th:src="${'http://localhost:9870/webhdfs/v1/user/hadoop/images/' + p.img + '?op=OPEN'}"></td>
         </tr>
     </table>
 </body>
