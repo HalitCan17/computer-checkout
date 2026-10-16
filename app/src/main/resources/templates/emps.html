@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee</title>
+    <style>
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 4px 6px; }
+    </style>
+</head>
+<body>
+    <h1>EMPLOYEE</h1>
+    <table>
+        <tr>
+            <th>EMPNO</th>
+            <th>ENAME</th>
+            <th>JOB</th>
+            <th>MGR</th>
+            <th>HIREDATE</th>
+            <th>SAL</th>
+            <th>COMM</th>
+            <th>DEPT</th>
+            <th>IMG</th>
+        </tr>
+        <tr th:each="p : ${emps}">
+            <td th:text="${p.empno}"></td>
+            <td th:text="${p.ename}"></td>
+            <td th:text="${p.job}"></td>
+            <td th:text="${p.managerName}"></td>
+            <td th:text="${#temporals.format(p.hireDate, 'dd-MM-yyyy')}"></td>
+            <td th:text="${p.sal}"></td>
+            <td th:text="${p.comm}"></td>
+            <td th:text="${p.dname}"></td>
+            <td th:text="${p.img}"></td>
+        </tr>
+    </table>
+</body>
+</html>
