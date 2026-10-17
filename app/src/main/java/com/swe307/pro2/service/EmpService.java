@@ -62,6 +62,24 @@ public class EmpService {
         return list;
     }
 
+    private Optional<EmpDto> findOne(Integer empno) {
+        if (!Boolean.TRUE.equals(_redis.hasKey(VIEW_KEY))) {
+            loadFromDatabase();
+        }
+        Object raw = _redis.opsForHash().get(VIEW_KEY, String.valueOf(empno));
+        if (raw == null) {
+            return Optional.empty();
+        }
+        return Optional.of(_json.readValue((String) raw, EmpDto.class));
+    }
+
+    private void saveToRedis(EmpDto updated, EmpUpdateDto pending) {
+        String field = String.valueOf(updated.empno());
+        _redis.opsForHash().put(VIEW_KEY, field, _json.writeValueAsString(updated));
+        _redis.opsForHash().put(PENDING_KEY, field, _json.writeValueAsString(pending));
+        log.info("UPDATE: {} Redis'e yazildi, MySQL'e aktarim bekliyor", updated.empno());
+    }
+
     public Optional<EmpDto> update(Integer empno, EmpUpdateDto dto) {
         if (dto == null || dto.ename() == null || dto.ename().isBlank()) {
             throw new IllegalArgumentException("Ad bos olamaz");
@@ -73,23 +91,34 @@ public class EmpService {
             throw new IllegalArgumentException("Komisyon negatif olamaz");
         }
 
-        if (!Boolean.TRUE.equals(_redis.hasKey(VIEW_KEY))) {
-            loadFromDatabase();
-        }
-
-        Object raw = _redis.opsForHash().get(VIEW_KEY, String.valueOf(empno));
-        if (raw == null) {
+        Optional<EmpDto> found = findOne(empno);
+        if (found.isEmpty()) {
             return Optional.empty();
         }
 
-        EmpDto old = _json.readValue((String) raw, EmpDto.class);
+        EmpDto old = found.get();
+        String img = dto.img() != null ? dto.img() : old.img();
+
         EmpDto updated = new EmpDto(old.empno(), dto.ename(), old.job(), old.managerName(),
-                old.hireDate(), dto.sal(), dto.comm(), old.dname(), old.img());
-
-        _redis.opsForHash().put(VIEW_KEY, String.valueOf(empno), _json.writeValueAsString(updated));
-        _redis.opsForHash().put(PENDING_KEY, String.valueOf(empno), _json.writeValueAsString(dto));
-
-        log.info("UPDATE: {} Redis'e yazildi, MySQL'e aktarim bekliyor", empno);
+                old.hireDate(), dto.sal(), dto.comm(), old.dname(), img);
+        saveToRedis(updated, new EmpUpdateDto(dto.ename(), dto.sal(), dto.comm(), img));
         return Optional.of(updated);
+    }
+
+    public Optional<EmpDto> updateImage(Integer empno, String fileName) {
+        Optional<EmpDto> found = findOne(empno);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+
+        EmpDto old = found.get();
+        EmpDto updated = new EmpDto(old.empno(), old.ename(), old.job(), old.managerName(),
+                old.hireDate(), old.sal(), old.comm(), old.dname(), fileName);
+        saveToRedis(updated, new EmpUpdateDto(old.ename(), old.sal(), old.comm(), fileName));
+        return Optional.of(updated);
+    }
+
+    public boolean exists(Integer empno) {
+        return findOne(empno).isPresent();
     }
 }

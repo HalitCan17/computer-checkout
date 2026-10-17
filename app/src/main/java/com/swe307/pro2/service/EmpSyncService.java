@@ -50,6 +50,9 @@ public class EmpSyncService {
                     emp.setEname(dto.ename());
                     emp.setSal(dto.sal());
                     emp.setComm(dto.comm());
+                    if (dto.img() != null) {
+                        emp.setImg(dto.img());
+                    }
                     _repo.save(emp);
                     log.info("FLUSH: {} MySQL'e yazildi", field);
 
