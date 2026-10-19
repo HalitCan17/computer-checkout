@@ -9,6 +9,8 @@
         th, td { border: 1px solid #000; padding: 4px 6px; }
         form { margin: 12px 0; }
         .msg { color: #b00020; margin-left: 8px; }
+        .hidden { display: none; }
+        .editing { margin-right: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -16,17 +18,23 @@
     <p><a th:href="@{/chat}">Chat</a></p>
 
     <form id="addForm">
-        <input id="studentNumber" placeholder="Student number" required>
-        <select id="computerId" required>
-            <option value="">-- computer --</option>
-            <option th:each="c : ${computers}" th:value="${c.id}"
-                    th:text="${c.brand + ' ' + c.model + ' (' + c.serialNumber + ')'}"></option>
-        </select>
+        <span id="editInfo" class="editing hidden"></span>
+        <span id="addFields">
+            <input id="studentNumber" placeholder="Student number" required>
+            <select id="computerId" required>
+                <option value="">-- computer --</option>
+                <option th:each="c : ${computers}" th:value="${c.id}"
+                        th:text="${c.brand + ' ' + c.model + ' (' + c.serialNumber + ')'}"></option>
+            </select>
+        </span>
         <input id="reservationDate" type="datetime-local" required>
         <input id="returnDate" type="datetime-local" required>
-        <button type="submit">Add</button>
+        <button id="submitBtn" type="submit">Add</button>
+        <button id="cancelBtn" type="button" class="hidden" onclick="cancelEdit()">Cancel</button>
         <span id="msg" class="msg"></span>
     </form>
+
+    <input id="photoInput" type="file" accept=".jpg,.jpeg,.png" class="hidden">
 
     <table>
         <tr>
@@ -52,27 +60,92 @@
             <td th:text="${r.serialNumber}"></td>
             <td th:text="${#temporals.format(r.reservationDate, 'dd-MM-yyyy HH:mm')}"></td>
             <td th:text="${#temporals.format(r.returnDate, 'dd-MM-yyyy HH:mm')}"></td>
-            <td><button type="button" th:onclick="'removeReservation(' + ${r.id} + ')'">Delete</button></td>
+            <td>
+                <button type="button"
+                        th:data-id="${r.id}"
+                        th:data-info="${r.firstName + ' ' + r.lastName + ' - ' + r.brand + ' ' + r.model}"
+                        th:data-start="${#temporals.format(r.reservationDate, 'yyyy-MM-dd''T''HH:mm')}"
+                        th:data-end="${#temporals.format(r.returnDate, 'yyyy-MM-dd''T''HH:mm')}"
+                        onclick="editReservation(this)">Edit</button>
+                <button type="button" th:onclick="'pickPhoto(' + ${r.studentId} + ')'">Photo</button>
+                <button type="button" th:onclick="'removeReservation(' + ${r.id} + ')'">Delete</button>
+            </td>
         </tr>
     </table>
 
     <script>
         const msg = document.getElementById('msg');
+        const addFields = document.getElementById('addFields');
+        const editInfo = document.getElementById('editInfo');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        let editingId = null;   // null: yeni ekleme, dolu: bu id guncelleniyor
+
+        function editReservation(btn) {
+            editingId = btn.dataset.id;
+            msg.textContent = '';
+            editInfo.textContent = 'Editing #' + editingId + ': ' + btn.dataset.info;
+            editInfo.classList.remove('hidden');
+            addFields.classList.add('hidden');
+            document.getElementById('studentNumber').required = false;
+            document.getElementById('computerId').required = false;
+            document.getElementById('reservationDate').value = btn.dataset.start;
+            document.getElementById('returnDate').value = btn.dataset.end;
+            submitBtn.textContent = 'Save';
+            cancelBtn.classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function cancelEdit() {
+            location.reload();
+        }
 
         document.getElementById('addForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             msg.textContent = '';
-            const body = {
-                studentNumber: document.getElementById('studentNumber').value,
-                computerId: Number(document.getElementById('computerId').value),
-                reservationDate: document.getElementById('reservationDate').value,
-                returnDate: document.getElementById('returnDate').value
-            };
-            const res = await fetch('/api/reservations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
+            const start = document.getElementById('reservationDate').value;
+            const end = document.getElementById('returnDate').value;
+            let res;
+            if (editingId === null) {
+                res = await fetch('/api/reservations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentNumber: document.getElementById('studentNumber').value,
+                        computerId: Number(document.getElementById('computerId').value),
+                        reservationDate: start,
+                        returnDate: end
+                    })
+                });
+            } else {
+                res = await fetch('/api/reservations/' + editingId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reservationDate: start, returnDate: end })
+                });
+            }
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        });
+
+        let photoStudentId = null;
+        const photoInput = document.getElementById('photoInput');
+
+        function pickPhoto(studentId) {
+            photoStudentId = studentId;
+            photoInput.value = '';
+            photoInput.click();
+        }
+
+        photoInput.addEventListener('change', async () => {
+            if (!photoInput.files.length) return;
+            msg.textContent = '';
+            const form = new FormData();
+            form.append('file', photoInput.files[0]);
+            const res = await fetch('/api/students/' + photoStudentId + '/photo', { method: 'POST', body: form });
             if (res.ok) {
                 location.reload();
             } else {

@@ -5,14 +5,17 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.swe307.pro2.dto.ReservationCreateDto;
 import com.swe307.pro2.dto.ReservationDto;
+import com.swe307.pro2.dto.ReservationUpdateDto;
 import com.swe307.pro2.model.Computer;
 import com.swe307.pro2.model.Reservation;
 import com.swe307.pro2.model.Student;
@@ -27,6 +30,7 @@ public class ReservationService {
 
     private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
     private static final String VIEW_KEY = "reservation:view";
+    private static final String PENDING_KEY = "reservation:pending";
     private static final Duration TTL = Duration.ofMinutes(5);
 
     private final ReservationRepository _repo;
@@ -58,6 +62,7 @@ public class ReservationService {
     }
 
     private List<ReservationDto> loadFromDatabase() {
+        flushPending(); // bekleyen guncellemeler MySQL'e gitmeden vitrin eski veriyle dolmasin
         log.info("CACHE MISS: Redis bos, MySQL'e gidildi (JOIN)");
         List<ReservationDto> list = _repo.findAllView();
         if (list.isEmpty()) {
@@ -84,6 +89,7 @@ public class ReservationService {
         if (!computer.isAvailable()) {
             throw new IllegalStateException("Bu bilgisayar su an musait degil");
         }
+        flushPending(); // MySQL'deki cakisma kontrolu bekleyen guncellemeleri de gorsun
         if (_repo.existsOverlap(computer.getId(), d.reservationDate(), d.returnDate())) {
             throw new IllegalStateException("Bu bilgisayar secilen saatlerde baska bir rezervasyonda");
         }
@@ -120,10 +126,92 @@ public class ReservationService {
         log.info("DELETE: rezervasyon {} MySQL'den silindi", id);
         try {
             _redis.opsForHash().delete(VIEW_KEY, String.valueOf(id));   // 2) sonra Redis
+            _redis.opsForHash().delete(PENDING_KEY, String.valueOf(id)); // bekleyen guncellemesi varsa o da bosa gider
         } catch (Exception ex) {
             invalidateView(ex);
         }
         return true;
+    }
+
+    // ---------- UPDATE (write-behind): once Redis, MySQL'e sonra (flushPending) ----------
+    public Optional<ReservationDto> update(Long id, ReservationUpdateDto d) {
+        if (d == null || d.reservationDate() == null || d.returnDate() == null) {
+            throw new IllegalArgumentException("Rezervasyon ve iade tarihi zorunlu");
+        }
+        if (!d.returnDate().isAfter(d.reservationDate())) {
+            throw new IllegalArgumentException("Iade tarihi rezervasyon tarihinden sonra olmali");
+        }
+
+        List<ReservationDto> all = findAll();               // vitrin bossa MySQL'den doldurur
+        ReservationDto old = all.stream().filter(r -> r.id().equals(id)).findFirst().orElse(null);
+        if (old == null) {
+            return Optional.empty();
+        }
+        // cakisma kontrolu vitrinde (en guncel veri orada): ayni bilgisayar, baska rezervasyonlar
+        boolean overlap = all.stream().anyMatch(r -> !r.id().equals(id)
+                && r.computerId().equals(old.computerId())
+                && r.reservationDate().isBefore(d.returnDate())
+                && r.returnDate().isAfter(d.reservationDate()));
+        if (overlap) {
+            throw new IllegalStateException("Bu bilgisayar secilen saatlerde baska bir rezervasyonda");
+        }
+
+        ReservationDto updated = new ReservationDto(old.id(), old.studentId(), old.firstName(), old.lastName(),
+                old.studentNumber(), old.department(), old.photo(), old.computerId(), old.brand(), old.model(),
+                old.serialNumber(), d.reservationDate(), d.returnDate());
+        _redis.opsForHash().put(VIEW_KEY, String.valueOf(id), _json.writeValueAsString(updated));  // 1) Redis (vitrin)
+        _redis.opsForHash().put(PENDING_KEY, String.valueOf(id), _json.writeValueAsString(d));     // 2) MySQL'e gidecekler listesi
+        log.info("UPDATE: rezervasyon {} Redis'e yazildi, MySQL'e sonra aktarilacak", id);
+        return Optional.of(updated);
+    }
+
+    // Periyodik: bekleyen guncellemeleri MySQL'e yazar. Hem zamanlayici hem okuma/ekleme cagirir.
+    @Scheduled(fixedDelayString = "${reservation.flush-ms:30000}")
+    public synchronized void flushPending() {
+        try {
+            Map<Object, Object> pending = _redis.opsForHash().entries(PENDING_KEY);
+            for (Map.Entry<Object, Object> e : pending.entrySet()) {
+                Long id = Long.valueOf((String) e.getKey());
+                ReservationUpdateDto d = _json.readValue((String) e.getValue(), ReservationUpdateDto.class);
+                _repo.findById(id).ifPresent(r -> {
+                    r.setReservationDate(d.reservationDate());
+                    r.setReturnDate(d.returnDate());
+                    _repo.save(r);
+                    log.info("FLUSH: rezervasyon {} MySQL'e aktarildi", id);
+                });
+                // bu arada ayni kayit tekrar guncellendiyse dokunma, bir sonraki turda gider
+                Object current = _redis.opsForHash().get(PENDING_KEY, e.getKey());
+                if (e.getValue().equals(current)) {
+                    _redis.opsForHash().delete(PENDING_KEY, e.getKey());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("FLUSH basarisiz, bekleyenler Redis'te duruyor, sonraki turda denenecek: {}", ex.toString());
+        }
+    }
+
+        // ---------- Ogrenci fotografi degisti: vitrindeki o ogrencinin tum satirlarini guncelle ----------
+    public void refreshStudentPhoto(Long studentId, String photo) {
+        try {
+            if (!Boolean.TRUE.equals(_redis.hasKey(VIEW_KEY))) {
+                return;                                     // vitrin yok: sonraki okuma MySQL'den taze yukler
+            }
+            Map<String, String> changed = new HashMap<>();
+            for (Map.Entry<Object, Object> e : _redis.opsForHash().entries(VIEW_KEY).entrySet()) {
+                ReservationDto r = _json.readValue((String) e.getValue(), ReservationDto.class);
+                if (r.studentId().equals(studentId)) {
+                    ReservationDto n = new ReservationDto(r.id(), r.studentId(), r.firstName(), r.lastName(),
+                            r.studentNumber(), r.department(), photo, r.computerId(), r.brand(), r.model(),
+                            r.serialNumber(), r.reservationDate(), r.returnDate());
+                    changed.put((String) e.getKey(), _json.writeValueAsString(n));
+                }
+            }
+            if (!changed.isEmpty()) {
+                _redis.opsForHash().putAll(VIEW_KEY, changed);
+            }
+        } catch (Exception ex) {
+            invalidateView(ex);
+        }
     }
 
     // MySQL yazildi ama Redis yazilamadiysa: vitrini sil, sonraki okuma MySQL'den taze yuklesin

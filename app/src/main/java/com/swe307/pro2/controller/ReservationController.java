@@ -8,11 +8,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.swe307.pro2.dto.ReservationCreateDto;
 import com.swe307.pro2.dto.ReservationDto;
+import com.swe307.pro2.dto.ReservationUpdateDto;
 import com.swe307.pro2.service.ReservationService;
 
 @RestController
@@ -34,6 +36,19 @@ public class ReservationController {
         try {
             ReservationDto created = _service.create(dto);
             return ResponseEntity.created(URI.create("/api/reservations/" + created.id())).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(e.getMessage());
+        }
+    }
+
+        @PutMapping("/api/reservations/{id}")
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody ReservationUpdateDto dto) {
+        try {
+            return _service.update(id, dto)
+                    .<ResponseEntity<?>>map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (IllegalStateException e) {

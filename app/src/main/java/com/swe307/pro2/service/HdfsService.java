@@ -43,4 +43,17 @@ public class HdfsService {
 
     }
 
+    public void delete(String fileName) {
+        String path = _imageDir + "/" + fileName;
+        try {
+            _client.delete()
+                    .uri("/webhdfs/v1" + path + "?op=DELETE&user.name=root")
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("HDFS: {} silindi", path);
+        } catch (Exception ex) {
+            log.warn("HDFS: {} silinemedi: {}", path, ex.toString());
+        }
+    }
+
 }
