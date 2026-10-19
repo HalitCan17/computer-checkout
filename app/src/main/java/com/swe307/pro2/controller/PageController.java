@@ -4,21 +4,25 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import com.swe307.pro2.service.EmpService;
+import com.swe307.pro2.service.ComputerService;
+import com.swe307.pro2.service.ReservationService;
 
 @Controller
 public class PageController {
 
-    private final EmpService _service;
+    private final ReservationService _reservations;
+    private final ComputerService _computers;
 
-    public PageController(EmpService service) {
-        _service = service;
+    public PageController(ReservationService reservations, ComputerService computers) {
+        _reservations = reservations;
+        _computers = computers;
     }
 
     @GetMapping("/")
     public String index(Model model) {
-        model.addAttribute("emps", _service.findAll());
-        return "emps";
+        model.addAttribute("reservations", _reservations.findAll());
+        model.addAttribute("computers", _computers.findAvailable());
+        return "reservations";
     }
 
     @GetMapping("/chat")

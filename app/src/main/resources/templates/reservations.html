@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Reservations</title>
+    <style>
+        body { font-family: sans-serif; }
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 4px 6px; }
+        form { margin: 12px 0; }
+        .msg { color: #b00020; margin-left: 8px; }
+    </style>
+</head>
+<body>
+    <h1>RESERVATIONS</h1>
+    <p><a th:href="@{/chat}">Chat</a></p>
+
+    <form id="addForm">
+        <input id="studentNumber" placeholder="Student number" required>
+        <select id="computerId" required>
+            <option value="">-- computer --</option>
+            <option th:each="c : ${computers}" th:value="${c.id}"
+                    th:text="${c.brand + ' ' + c.model + ' (' + c.serialNumber + ')'}"></option>
+        </select>
+        <input id="reservationDate" type="datetime-local" required>
+        <input id="returnDate" type="datetime-local" required>
+        <button type="submit">Add</button>
+        <span id="msg" class="msg"></span>
+    </form>
+
+    <table>
+        <tr>
+            <th>PHOTO</th>
+            <th>STUDENT</th>
+            <th>NUMBER</th>
+            <th>DEPARTMENT</th>
+            <th>COMPUTER</th>
+            <th>SERIAL</th>
+            <th>RESERVED</th>
+            <th>RETURN</th>
+            <th></th>
+        </tr>
+        <tr th:each="r : ${reservations}">
+            <td>
+                <img th:if="${r.photo != null}" style="width:1.5cm;" th:src="${'http://localhost:9870/webhdfs/v1/user/hadoop/images/' + r.photo + '?op=OPEN'}">
+                <span th:unless="${r.photo != null}">-</span>
+            </td>
+            <td th:text="${r.firstName + ' ' + r.lastName}"></td>
+            <td th:text="${r.studentNumber}"></td>
+            <td th:text="${r.department}"></td>
+            <td th:text="${r.brand + ' ' + r.model}"></td>
+            <td th:text="${r.serialNumber}"></td>
+            <td th:text="${#temporals.format(r.reservationDate, 'dd-MM-yyyy HH:mm')}"></td>
+            <td th:text="${#temporals.format(r.returnDate, 'dd-MM-yyyy HH:mm')}"></td>
+            <td><button type="button" th:onclick="'removeReservation(' + ${r.id} + ')'">Delete</button></td>
+        </tr>
+    </table>
+
+    <script>
+        const msg = document.getElementById('msg');
+
+        document.getElementById('addForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msg.textContent = '';
+            const body = {
+                studentNumber: document.getElementById('studentNumber').value,
+                computerId: Number(document.getElementById('computerId').value),
+                reservationDate: document.getElementById('reservationDate').value,
+                returnDate: document.getElementById('returnDate').value
+            };
+            const res = await fetch('/api/reservations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        });
+
+        async function removeReservation(id) {
+            if (!confirm('Delete reservation ' + id + '?')) return;
+            const res = await fetch('/api/reservations/' + id, { method: 'DELETE' });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = 'Delete failed (' + res.status + ')';
+            }
+        }
+    </script>
+</body>
+</html>

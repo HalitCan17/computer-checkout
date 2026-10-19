@@ -1,23 +1,23 @@
+SET NAMES utf8mb4;
 USE swe307pro2;
 
-INSERT INTO dept VALUES
-(10,'ACCOUNTING','NEW YORK'),
-(20,'RESEARCH','DALLAS'),
-(30,'SALES','CHICAGO'),
-(40,'OPERATIONS','BOSTON');
+INSERT INTO students (first_name, last_name, department, student_number) VALUES
+('Halit',   'Can',   'Yazılım Mühendisliği', 'B250000001'),
+('Aytek', 'Aksu',    'Yazılım Mühendisliği',    'B250000002'),
+('Berkan', 'Akten',  'Bilgisayar Mühendisliği', 'B250000003'),
+('Eren',   'Can',  'Elektrik-Elektronik',     'B250000004'),
+('Ata',   'Zaptiye',   'Kaldırım Mühendisliği',   'B250000005'),
+('Burak',  'Çelik',   'Yazılım Mühendisliği',    'B250000006'),
+('Selin',  'Aydın',   'Makine Mühendisliği',     'B250000007'),
+('Can',    'Öztürk',  'Bilgisayar Mühendisliği', 'B250000008'),
+('Deniz',  'Koç',     'Elektrik-Elektronik',     'B250000009'),
+('Ece',    'Polat',   'Yazılım Mühendisliği',    'B250000010');
 
-INSERT INTO emp VALUES
-(7369,'SMITH','CLERK',7902,'1980-12-17',800,NULL,20,'smith.jpg'),
-(7499,'ALLEN','SALESMAN',7698,'1981-02-20',1600,300,30,'allen.jpg'),
-(7521,'WARD','SALESMAN',7698,'1981-02-22',1250,500,30,'ward.jpg'),
-(7566,'JONES','MANAGER',7839,'1981-04-02',2975,NULL,20,'jones.jpg'),
-(7654,'MARTIN','SALESMAN',7698,'1981-09-28',1250,1400,30,'martin.jpg'),
-(7698,'BLAKE','MANAGER',7839,'1981-05-01',2850,NULL,30,'blake.jpg'),
-(7782,'CLARK','MANAGER',7839,'1981-06-09',2450,NULL,10,'clark.jpg'),
-(7788,'SCOTT','ANALYST',7566,'1982-12-09',3000,NULL,20,'scott.jpg'),
-(7839,'KING','PRESIDENT',NULL,'1981-11-17',5000,NULL,10,'king.jpg'),
-(7844,'TURNER','SALESMAN',7698,'1981-09-08',1500,0,30,'turner.jpg'),
-(7876,'ADAMS','CLERK',7788,'1983-01-12',1100,NULL,20,'adams.jpg'),
-(7900,'JAMES','CLERK',7698,'1981-12-03',950,NULL,30,'james.jpg'),
-(7902,'FORD','ANALYST',7566,'1981-12-03',3000,NULL,20,'ford.jpg'),
-(7934,'MILLER','CLERK',7782,'1982-01-23',1300,NULL,10,'miller.jpg');
+INSERT INTO computers (brand, model, serial_number, is_available) VALUES
+('Dell',   'Latitude 5440',   'SN-DL-0001', TRUE),
+('Lenovo', 'ThinkPad T14',    'SN-LN-0002', TRUE),
+('HP',     'ProBook 450',     'SN-HP-0003', TRUE),
+('Asus',   'VivoBook 15',     'SN-AS-0004', TRUE),
+('Apple',  'MacBook Air M2',  'SN-AP-0005', TRUE),
+('MSI',    'Modern 14',       'SN-MS-0006', FALSE);
+
