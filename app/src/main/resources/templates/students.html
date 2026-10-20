@@ -26,6 +26,8 @@
         <span id="msg" class="msg"></span>
     </form>
 
+    <input id="photoInput" type="file" accept=".jpg,.jpeg,.png" class="hidden">
+
     <table>
         <tr>
             <th>ID</th>
@@ -54,6 +56,7 @@
                         th:data-dept="${s.department}"
                         th:data-number="${s.studentNumber}"
                         onclick="editStudent(this)">Edit</button>
+                <button type="button" th:onclick="'pickPhoto(' + ${s.id} + ')'">Photo</button>
                 <button type="button" th:onclick="'removeStudent(' + ${s.id} + ')'">Delete</button>
             </td>
         </tr>
@@ -90,6 +93,28 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        });
+
+        let photoStudentId = null;
+        const photoInput = document.getElementById('photoInput');
+
+        function pickPhoto(studentId) {
+            photoStudentId = studentId;
+            photoInput.value = '';
+            photoInput.click();
+        }
+
+        photoInput.addEventListener('change', async () => {
+            if (!photoInput.files.length) return;
+            msg.textContent = '';
+            const form = new FormData();
+            form.append('file', photoInput.files[0]);
+            const res = await fetch('/api/students/' + photoStudentId + '/photo', { method: 'POST', body: form });
             if (res.ok) {
                 location.reload();
             } else {

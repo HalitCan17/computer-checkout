@@ -33,8 +33,6 @@
         <span id="msg" class="msg"></span>
     </form>
 
-    <input id="photoInput" type="file" accept=".jpg,.jpeg,.png" class="hidden">
-
     <table>
         <tr>
             <th>PHOTO</th>
@@ -68,7 +66,6 @@
                         th:data-start="${#temporals.format(r.reservationDate, 'yyyy-MM-dd''T''HH:mm')}"
                         th:data-end="${#temporals.format(r.returnDate, 'yyyy-MM-dd''T''HH:mm')}"
                         onclick="editReservation(this)">Edit</button>
-                <button type="button" th:onclick="'pickPhoto(' + ${r.studentId} + ')'">Photo</button>
                 <button type="button" th:onclick="'removeReservation(' + ${r.id} + ')'">Delete</button>
             </td>
         </tr>
@@ -156,28 +153,6 @@
         startIn.addEventListener('input', refreshComputers);
         endIn.addEventListener('input', refreshComputers);
         refreshComputers();
-
-        let photoStudentId = null;
-        const photoInput = document.getElementById('photoInput');
-
-        function pickPhoto(studentId) {
-            photoStudentId = studentId;
-            photoInput.value = '';
-            photoInput.click();
-        }
-
-        photoInput.addEventListener('change', async () => {
-            if (!photoInput.files.length) return;
-            msg.textContent = '';
-            const form = new FormData();
-            form.append('file', photoInput.files[0]);
-            const res = await fetch('/api/students/' + photoStudentId + '/photo', { method: 'POST', body: form });
-            if (res.ok) {
-                location.reload();
-            } else {
-                msg.textContent = await res.text();
-            }
-        });
 
         async function removeReservation(id) {
             if (!confirm('Delete reservation ' + id + '?')) return;
