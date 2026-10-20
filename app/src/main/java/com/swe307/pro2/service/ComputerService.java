@@ -17,6 +17,13 @@ public class ComputerService {
         _repo=repo;
     }
 
+    public List<ComputerDto> findAll(){
+        return _repo.findAll().stream()
+        .map(c->new ComputerDto(c.getId(), c.getBrand(),c.getModel(), c.getSerialNumber(), c.isAvailable()))
+        .sorted(Comparator.comparing(ComputerDto::id))
+        .toList();
+    }
+
     public List<ComputerDto> findAvailable(){
         return _repo.findByAvailableTrue().stream()
         .map(c->new ComputerDto(c.getId(), c.getBrand(),c.getModel(), c.getSerialNumber(), c.isAvailable()))

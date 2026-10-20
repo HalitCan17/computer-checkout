@@ -21,7 +21,7 @@ public class PageController {
     @GetMapping("/")
     public String index(Model model) {
         model.addAttribute("reservations", _reservations.findAll());
-        model.addAttribute("computers", _computers.findAvailable());
+        model.addAttribute("computers", _computers.findAll());
         return "reservations";
     }
 

@@ -19,16 +19,15 @@
 
     <form id="addForm">
         <span id="editInfo" class="editing hidden"></span>
-        <span id="addFields">
-            <input id="studentNumber" placeholder="Student number" required>
-            <select id="computerId" required>
-                <option value="">-- computer --</option>
-                <option th:each="c : ${computers}" th:value="${c.id}"
-                        th:text="${c.brand + ' ' + c.model + ' (' + c.serialNumber + ')'}"></option>
-            </select>
-        </span>
+        <input id="studentNumber" class="addOnly" placeholder="Student number" required>
         <input id="reservationDate" type="datetime-local" required>
         <input id="returnDate" type="datetime-local" required>
+        <select id="computerId" class="addOnly" required>
+            <option value="">-- computer --</option>
+            <option th:each="c : ${computers}" th:value="${c.id}" th:data-available="${c.available}"
+                    th:data-label="${c.brand + ' ' + c.model + ' (' + c.serialNumber + ')'}"
+                    th:text="${c.brand + ' ' + c.model + ' (' + c.serialNumber + ')'}"></option>
+        </select>
         <button id="submitBtn" type="submit">Add</button>
         <button id="cancelBtn" type="button" class="hidden" onclick="cancelEdit()">Cancel</button>
         <span id="msg" class="msg"></span>
@@ -48,7 +47,9 @@
             <th>RETURN</th>
             <th></th>
         </tr>
-        <tr th:each="r : ${reservations}">
+        <tr th:each="r : ${reservations}" th:data-computer="${r.computerId}"
+            th:data-start="${#temporals.format(r.reservationDate, 'yyyy-MM-dd''T''HH:mm')}"
+            th:data-end="${#temporals.format(r.returnDate, 'yyyy-MM-dd''T''HH:mm')}">
             <td>
                 <img th:if="${r.photo != null}" style="width:1.5cm;" th:src="${'http://localhost:9870/webhdfs/v1/user/hadoop/images/' + r.photo + '?op=OPEN'}">
                 <span th:unless="${r.photo != null}">-</span>
@@ -75,7 +76,6 @@
 
     <script>
         const msg = document.getElementById('msg');
-        const addFields = document.getElementById('addFields');
         const editInfo = document.getElementById('editInfo');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.getElementById('cancelBtn');
@@ -86,7 +86,7 @@
             msg.textContent = '';
             editInfo.textContent = 'Editing #' + editingId + ': ' + btn.dataset.info;
             editInfo.classList.remove('hidden');
-            addFields.classList.add('hidden');
+            document.querySelectorAll('.addOnly').forEach(e => e.classList.add('hidden'));
             document.getElementById('studentNumber').required = false;
             document.getElementById('computerId').required = false;
             document.getElementById('reservationDate').value = btn.dataset.start;
@@ -130,6 +130,32 @@
                 msg.textContent = await res.text();
             }
         });
+
+        // Tarih secilince dolu bilgisayarlari kirmizi yap ve secilemez kil
+        const startIn = document.getElementById('reservationDate');
+        const endIn = document.getElementById('returnDate');
+        const compSel = document.getElementById('computerId');
+        const busy = [...document.querySelectorAll('tr[data-computer]')]
+            .map(tr => ({ c: tr.dataset.computer, s: tr.dataset.start, e: tr.dataset.end }));
+
+        function refreshComputers() {
+            const s = startIn.value, e = endIn.value;
+            const ok = s && e && e > s;
+            compSel.disabled = !ok;
+            for (const o of compSel.options) {
+                if (!o.value) { o.text = ok ? '-- computer --' : '-- pick dates first --'; continue; }
+                const clash = ok && busy.find(b => b.c === o.value && b.s < e && b.e > s);
+                const off = o.dataset.available === 'false';
+                o.disabled = off || !!clash;
+                o.style.color = clash ? '#b00020' : off ? '#888' : '';
+                o.text = o.dataset.label + (off ? ' (not available)'
+                        : clash ? ' (busy ' + clash.s.slice(5).replace('T', ' ') + ' - ' + clash.e.slice(11) + ')' : '');
+            }
+            if (compSel.selectedOptions[0] && compSel.selectedOptions[0].disabled) compSel.value = '';
+        }
+        startIn.addEventListener('input', refreshComputers);
+        endIn.addEventListener('input', refreshComputers);
+        refreshComputers();
 
         let photoStudentId = null;
         const photoInput = document.getElementById('photoInput');
