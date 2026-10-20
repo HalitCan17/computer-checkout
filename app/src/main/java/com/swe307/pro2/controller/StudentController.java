@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,21 +16,24 @@ import org.springframework.web.bind.annotation.RestController;
 import com.swe307.pro2.model.Student;
 import com.swe307.pro2.repository.StudentRepository;
 import com.swe307.pro2.service.ReservationService;
+import com.swe307.pro2.service.StudentCache;
 
 @RestController
 public class StudentController {
 
     private final StudentRepository _repo;
     private final ReservationService _reservations;
+    private final StudentCache _cache;
 
-    public StudentController(StudentRepository repo, ReservationService reservations) {
+    public StudentController(StudentRepository repo, ReservationService reservations, StudentCache cache) {
         _repo = repo;
         _reservations = reservations;
+        _cache = cache;
     }
 
     @GetMapping("/api/students")
     public List<Student> all() {
-        return _repo.findAll(Sort.by("id"));
+        return _cache.findAll();
     }
 
     @PostMapping("/api/students")
@@ -72,6 +74,7 @@ public class StudentController {
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(409).body("Bu ogrencinin rezervasyonu var, once rezervasyonlarini silin");
         }
+        _cache.remove(id);
         _reservations.clearView();
         return ResponseEntity.noContent().build();
     }
@@ -79,6 +82,7 @@ public class StudentController {
     private ResponseEntity<?> save(Student s, boolean created) {
         try {
             Student saved = _repo.save(s);
+            _cache.put(saved);           // once MySQL, sonra Redis
             _reservations.clearView();   // rezervasyon listesindeki ad/bolum eski kalmasin
             return created
                     ? ResponseEntity.created(URI.create("/api/students/" + saved.getId())).body(saved)

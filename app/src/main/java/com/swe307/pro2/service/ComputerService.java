@@ -1,35 +1,31 @@
 package com.swe307.pro2.service;
 
-import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.swe307.pro2.dto.ComputerDto;
-import com.swe307.pro2.repository.ComputerRepository;
+import com.swe307.pro2.model.Computer;
 
-@Service 
+@Service
 public class ComputerService {
 
-    private final ComputerRepository _repo;
+    private final ComputerCache _cache;
 
-    public ComputerService(ComputerRepository repo){
-        _repo=repo;
+    public ComputerService(ComputerCache cache) {
+        _cache = cache;
     }
 
-    public List<ComputerDto> findAll(){
-        return _repo.findAll().stream()
-        .map(c->new ComputerDto(c.getId(), c.getBrand(),c.getModel(), c.getSerialNumber(), c.isAvailable()))
-        .sorted(Comparator.comparing(ComputerDto::id))
-        .toList();
+    // Tum bilgisayarlar (Redis'ten, yoksa MySQL'den)
+    public List<ComputerDto> findAll() {
+        return _cache.findAll().stream().map(this::toDto).toList();
     }
 
-    public List<ComputerDto> findAvailable(){
-        return _repo.findByAvailableTrue().stream()
-        .map(c->new ComputerDto(c.getId(), c.getBrand(),c.getModel(), c.getSerialNumber(), c.isAvailable()))
-        .sorted(Comparator.comparing(ComputerDto::id))
-        .toList();
-
+    public List<ComputerDto> findAvailable() {
+        return _cache.findAll().stream().filter(Computer::isAvailable).map(this::toDto).toList();
     }
-    
+
+    private ComputerDto toDto(Computer c) {
+        return new ComputerDto(c.getId(), c.getBrand(), c.getModel(), c.getSerialNumber(), c.isAvailable());
+    }
 }

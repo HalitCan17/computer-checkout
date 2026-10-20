@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.swe307.pro2.model.Computer;
 import com.swe307.pro2.repository.ComputerRepository;
+import com.swe307.pro2.service.ComputerCache;
 import com.swe307.pro2.service.ReservationService;
 
 @RestController
@@ -23,15 +23,17 @@ public class ComputerController {
 
     private final ComputerRepository _repo;
     private final ReservationService _reservations;
+    private final ComputerCache _cache;
 
-    public ComputerController(ComputerRepository repo, ReservationService reservations) {
+    public ComputerController(ComputerRepository repo, ReservationService reservations, ComputerCache cache) {
         _repo = repo;
         _reservations = reservations;
+        _cache = cache;
     }
 
     @GetMapping("/api/computers")
     public List<Computer> all() {
-        return _repo.findAll(Sort.by("id"));
+        return _cache.findAll();
     }
 
     @PostMapping("/api/computers")
@@ -71,6 +73,7 @@ public class ComputerController {
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(409).body("Bu bilgisayarin rezervasyonu var, once rezervasyonlarini silin");
         }
+        _cache.remove(id);
         _reservations.clearView();
         return ResponseEntity.noContent().build();
     }
@@ -78,6 +81,7 @@ public class ComputerController {
     private ResponseEntity<?> save(Computer c, boolean created) {
         try {
             Computer saved = _repo.save(c);
+            _cache.put(saved);           // once MySQL, sonra Redis
             _reservations.clearView();   // rezervasyon listesindeki marka/model eski kalmasin
             return created
                     ? ResponseEntity.created(URI.create("/api/computers/" + saved.getId())).body(saved)
