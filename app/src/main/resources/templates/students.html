@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Students</title>
+    <style>
+        body { font-family: sans-serif; }
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 4px 6px; }
+        form { margin: 12px 0; }
+        .msg { color: #b00020; margin-left: 8px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>STUDENTS</h1>
+    <p><a th:href="@{/}">Reservations</a> | <a th:href="@{/computers}">Computers</a> | <a th:href="@{/chat}">Chat</a></p>
+
+    <form id="form">
+        <input id="firstName" placeholder="First name" required>
+        <input id="lastName" placeholder="Last name" required>
+        <input id="department" placeholder="Department" required>
+        <input id="studentNumber" placeholder="Student number" required>
+        <button id="submitBtn" type="submit">Add</button>
+        <button id="cancelBtn" type="button" class="hidden" onclick="location.reload()">Cancel</button>
+        <span id="msg" class="msg"></span>
+    </form>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>PHOTO</th>
+            <th>FIRST NAME</th>
+            <th>LAST NAME</th>
+            <th>DEPARTMENT</th>
+            <th>NUMBER</th>
+            <th></th>
+        </tr>
+        <tr th:each="s : ${students}">
+            <td th:text="${s.id}"></td>
+            <td>
+                <img th:if="${s.photo != null}" style="width:1.5cm;" th:src="${'http://localhost:9870/webhdfs/v1/user/hadoop/images/' + s.photo + '?op=OPEN'}">
+                <span th:unless="${s.photo != null}">-</span>
+            </td>
+            <td th:text="${s.firstName}"></td>
+            <td th:text="${s.lastName}"></td>
+            <td th:text="${s.department}"></td>
+            <td th:text="${s.studentNumber}"></td>
+            <td>
+                <button type="button"
+                        th:data-id="${s.id}"
+                        th:data-first="${s.firstName}"
+                        th:data-last="${s.lastName}"
+                        th:data-dept="${s.department}"
+                        th:data-number="${s.studentNumber}"
+                        onclick="editStudent(this)">Edit</button>
+                <button type="button" th:onclick="'removeStudent(' + ${s.id} + ')'">Delete</button>
+            </td>
+        </tr>
+    </table>
+
+    <script>
+        const msg = document.getElementById('msg');
+        let editingId = null;   // null: yeni ekleme, dolu: bu id guncelleniyor
+
+        function editStudent(btn) {
+            editingId = btn.dataset.id;
+            msg.textContent = '';
+            document.getElementById('firstName').value = btn.dataset.first;
+            document.getElementById('lastName').value = btn.dataset.last;
+            document.getElementById('department').value = btn.dataset.dept;
+            document.getElementById('studentNumber').value = btn.dataset.number;
+            document.getElementById('submitBtn').textContent = 'Save';
+            document.getElementById('cancelBtn').classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msg.textContent = '';
+            const body = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                department: document.getElementById('department').value,
+                studentNumber: document.getElementById('studentNumber').value
+            };
+            const url = editingId === null ? '/api/students' : '/api/students/' + editingId;
+            const res = await fetch(url, {
+                method: editingId === null ? 'POST' : 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        });
+
+        async function removeStudent(id) {
+            if (!confirm('Delete student ' + id + '?')) return;
+            const res = await fetch('/api/students/' + id, { method: 'DELETE' });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        }
+    </script>
+</body>
+</html>

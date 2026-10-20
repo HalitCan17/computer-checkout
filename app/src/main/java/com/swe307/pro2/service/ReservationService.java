@@ -214,6 +214,15 @@ public class ReservationService {
         }
     }
 
+    // Ogrenci/bilgisayar bilgisi degisti: vitrini sil, sonraki okuma MySQL'den taze yuklesin
+    public void clearView() {
+        try {
+            _redis.delete(VIEW_KEY);
+        } catch (Exception ignore) {
+            // Redis kapali: vitrin TTL ile kendiliginden bitecek
+        }
+    }
+
     // MySQL yazildi ama Redis yazilamadiysa: vitrini sil, sonraki okuma MySQL'den taze yuklesin
     private void invalidateView(Exception cause) {
         log.warn("Redis vitrini guncellenemedi, onbellek temizleniyor: {}", cause.toString());

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Computers</title>
+    <style>
+        body { font-family: sans-serif; }
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 4px 6px; }
+        form { margin: 12px 0; }
+        .msg { color: #b00020; margin-left: 8px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>COMPUTERS</h1>
+    <p><a th:href="@{/}">Reservations</a> | <a th:href="@{/students}">Students</a> | <a th:href="@{/chat}">Chat</a></p>
+
+    <form id="form">
+        <input id="brand" placeholder="Brand" required>
+        <input id="model" placeholder="Model" required>
+        <input id="serialNumber" placeholder="Serial number" required>
+        <label><input id="available" type="checkbox" checked> Available</label>
+        <button id="submitBtn" type="submit">Add</button>
+        <button id="cancelBtn" type="button" class="hidden" onclick="location.reload()">Cancel</button>
+        <span id="msg" class="msg"></span>
+    </form>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>BRAND</th>
+            <th>MODEL</th>
+            <th>SERIAL</th>
+            <th>AVAILABLE</th>
+            <th></th>
+        </tr>
+        <tr th:each="c : ${computers}">
+            <td th:text="${c.id}"></td>
+            <td th:text="${c.brand}"></td>
+            <td th:text="${c.model}"></td>
+            <td th:text="${c.serialNumber}"></td>
+            <td th:text="${c.available ? 'Yes' : 'No'}"></td>
+            <td>
+                <button type="button"
+                        th:data-id="${c.id}"
+                        th:data-brand="${c.brand}"
+                        th:data-model="${c.model}"
+                        th:data-serial="${c.serialNumber}"
+                        th:data-available="${c.available}"
+                        onclick="editComputer(this)">Edit</button>
+                <button type="button" th:onclick="'removeComputer(' + ${c.id} + ')'">Delete</button>
+            </td>
+        </tr>
+    </table>
+
+    <script>
+        const msg = document.getElementById('msg');
+        let editingId = null;   // null: yeni ekleme, dolu: bu id guncelleniyor
+
+        function editComputer(btn) {
+            editingId = btn.dataset.id;
+            msg.textContent = '';
+            document.getElementById('brand').value = btn.dataset.brand;
+            document.getElementById('model').value = btn.dataset.model;
+            document.getElementById('serialNumber').value = btn.dataset.serial;
+            document.getElementById('available').checked = btn.dataset.available === 'true';
+            document.getElementById('submitBtn').textContent = 'Save';
+            document.getElementById('cancelBtn').classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msg.textContent = '';
+            const body = {
+                brand: document.getElementById('brand').value,
+                model: document.getElementById('model').value,
+                serialNumber: document.getElementById('serialNumber').value,
+                available: document.getElementById('available').checked
+            };
+            const url = editingId === null ? '/api/computers' : '/api/computers/' + editingId;
+            const res = await fetch(url, {
+                method: editingId === null ? 'POST' : 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        });
+
+        async function removeComputer(id) {
+            if (!confirm('Delete computer ' + id + '?')) return;
+            const res = await fetch('/api/computers/' + id, { method: 'DELETE' });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = await res.text();
+            }
+        }
+    </script>
+</body>
+</html>
