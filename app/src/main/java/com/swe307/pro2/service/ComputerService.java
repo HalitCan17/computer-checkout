@@ -16,7 +16,6 @@ public class ComputerService {
         _cache = cache;
     }
 
-    // Tum bilgisayarlar (Redis'ten, yoksa MySQL'den)
     public List<ComputerDto> findAll() {
         return _cache.findAll().stream().map(this::toDto).toList();
     }
