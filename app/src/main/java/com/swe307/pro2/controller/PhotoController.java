@@ -3,6 +3,7 @@ package com.swe307.pro2.controller;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,5 +32,12 @@ public class PhotoController {
         } catch (Exception e) {
             return ResponseEntity.status(503).body("Fotograf yuklenemedi (HDFS ulasilamiyor olabilir)");
         }
+    }
+
+    @DeleteMapping("/api/students/{id}/photo")
+    public ResponseEntity<?> remove(@PathVariable Long id) {
+        return _service.remove(id)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 }

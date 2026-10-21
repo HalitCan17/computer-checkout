@@ -57,6 +57,7 @@
                         th:data-number="${s.studentNumber}"
                         onclick="editStudent(this)">Edit</button>
                 <button type="button" th:onclick="'pickPhoto(' + ${s.id} + ')'">Photo</button>
+                <button type="button" th:if="${s.photo != null}" th:onclick="'removePhoto(' + ${s.id} + ')'">Remove photo</button>
                 <button type="button" th:onclick="'removeStudent(' + ${s.id} + ')'">Delete</button>
             </td>
         </tr>
@@ -64,7 +65,7 @@
 
     <script>
         const msg = document.getElementById('msg');
-        let editingId = null;   // null: yeni ekleme, dolu: bu id guncelleniyor
+        let editingId = null;   
 
         function editStudent(btn) {
             editingId = btn.dataset.id;
@@ -121,6 +122,16 @@
                 msg.textContent = await res.text();
             }
         });
+
+        async function removePhoto(id) {
+            if (!confirm('Remove the photo of student ' + id + '?')) return;
+            const res = await fetch('/api/students/' + id + '/photo', { method: 'DELETE' });
+            if (res.ok) {
+                location.reload();
+            } else {
+                msg.textContent = 'Remove failed (' + res.status + ')';
+            }
+        }
 
         async function removeStudent(id) {
             if (!confirm('Delete student ' + id + '?')) return;

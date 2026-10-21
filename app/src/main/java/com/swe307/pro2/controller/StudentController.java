@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.swe307.pro2.model.Student;
 import com.swe307.pro2.repository.StudentRepository;
+import com.swe307.pro2.service.PhotoService;
 import com.swe307.pro2.service.StudentService;
 
 @RestController
@@ -22,10 +23,12 @@ public class StudentController {
 
     private final StudentRepository _repo;
     private final StudentService _service;
+    private final PhotoService _photos;
 
-    public StudentController(StudentRepository repo, StudentService service) {
+    public StudentController(StudentRepository repo, StudentService service, PhotoService photos) {
         _repo = repo;
         _service = service;
+        _photos = photos;
     }
 
     @GetMapping("/api/students")
@@ -68,7 +71,8 @@ public class StudentController {
 
     @DeleteMapping("/api/students/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
-        if (!_repo.existsById(id)) {
+        Student student = _repo.findById(id).orElse(null);
+        if (student == null) {
             return ResponseEntity.notFound().build();
         }
         try {
@@ -76,6 +80,7 @@ public class StudentController {
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(409).body("Bu ogrencinin rezervasyonu var, once rezervasyonlarini silin");
         }
+        _photos.deleteFile(student.getPhoto());   
         return ResponseEntity.noContent().build();
     }
 

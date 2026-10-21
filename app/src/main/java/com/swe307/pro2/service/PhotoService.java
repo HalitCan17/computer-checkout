@@ -43,14 +43,33 @@ public class PhotoService {
         // her yuklemede yeni ad: tarayici eski resmi onbellekten gostermesin
         String newName = "student-" + studentId + "-" + System.currentTimeMillis() + "." + ext;
 
-        _hdfs.upload(newName, file.getBytes());                       // 1) resim HDFS'e
+        _hdfs.upload(newName, file.getBytes());                       
         student.setPhoto(newName);
-        _studentService.save(student);                                // 2) dosya adi MySQL'e, sonra Redis'e
+        _studentService.save(student);                               
 
-        if (oldName != null && oldName.startsWith("student-")) {      // sadece kendi yukledigimiz eski dosyayi sil
-            _hdfs.delete(oldName);
-        }
+        deleteFile(oldName);                                          
         return Optional.of(newName);
+    }
+
+    public boolean remove(Long studentId) {
+        Student student = _students.findById(studentId).orElse(null);
+        if (student == null) {
+            return false;
+        }
+        String oldName = student.getPhoto();
+        if (oldName != null) {
+            student.setPhoto(null);
+            _studentService.save(student);                            
+            deleteFile(oldName);                                    
+        }
+        return true;
+    }
+
+    
+    public void deleteFile(String fileName) {
+        if (fileName != null && fileName.startsWith("student-")) {
+            _hdfs.delete(fileName);
+        }
     }
 
     private String extensionOf(String fileName) {
