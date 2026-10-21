@@ -7,7 +7,7 @@ database, a Redis cache, HDFS file storage and a local LLM chat.
 |---|---|---|
 | Web app | Spring Boot 4.1, Java 21, Thymeleaf | Pages and REST API |
 | Database | MySQL 8.4 | Source of truth (students, computers, reservations) |
-| Cache | Redis 7 | Fast reads, write-behind for reservation updates |
+| Cache | Redis 7 + Spring Cache | Fast reads (`@Cacheable`, `@CachePut`, `@CacheEvict`) |
 | File storage | Hadoop HDFS (WebHDFS) | Student photos |
 | Chat | Ollama + llama3.2 | Chat page |
 | Reverse proxy | Nginx | Entry point in front of the Java app |
@@ -73,11 +73,12 @@ The reservation form only lets you pick a computer that is free in the selected 
 | Method | URL | Description |
 |---|---|---|
 | GET | `/api/reservations` | List reservations (JOIN view) |
+| GET | `/api/reservations/{id}` | One reservation |
 | POST | `/api/reservations` | Create (`studentNumber`, `computerId`, `reservationDate`, `returnDate`) |
 | PUT | `/api/reservations/{id}` | Update dates |
 | DELETE | `/api/reservations/{id}` | Delete |
 | GET/POST | `/api/students`, `/api/computers` | List / create |
-| PUT/DELETE | `/api/students/{id}`, `/api/computers/{id}` | Update / delete |
+| GET/PUT/DELETE | `/api/students/{id}`, `/api/computers/{id}` | One / update / delete |
 | POST | `/api/students/{id}/photo` | Upload a photo (multipart, field `file`, jpg or png, max 2 MB) |
 | POST | `/api/chat` | Chat (`{"message": "..."}`) |
 
@@ -86,28 +87,32 @@ Status codes: 200/201/204 success, 400 invalid input, 404 not found, 409 conflic
 
 ## How Redis is used
 
-| Operation | Order | Why |
-|---|---|---|
-| **Read** | Redis first, MySQL (JOIN) on a miss, then the result is stored in Redis (TTL 5 min) | Faster responses (cache-aside) |
-| **Create / Delete reservation** | MySQL first, then Redis | MySQL generates the id and runs the checks (overlap, availability) |
-| **Update reservation** | Redis first, MySQL later (`@Scheduled` every 30 s) | Write-behind: fast response, batched write. Pending changes are kept in `reservation:pending` |
-| **Students / computers** | MySQL first, then the Redis list is updated (reservation cache is cleared) | The reservation view contains student and computer fields |
-| **Photo upload** | HDFS, then MySQL (file name), then Redis | The file must exist before its name is saved |
+Caching uses Spring Cache annotations on the service classes (cache-aside). MySQL is the source of truth:
+every write goes to MySQL first, then Redis is updated or cleared.
 
-Redis keys: `reservation:view`, `reservation:pending`, `student:view`, `computer:view`
-(each list is one Redis hash: field = id, value = JSON).
+| Operation | Annotation | Order | Why |
+|---|---|---|---|
+| **Read** (list or one record) | `@Cacheable` | Redis first; on a miss MySQL, then the result is stored in Redis (TTL 5 min) | Faster responses |
+| **Create / Update** | `@CachePut` + `@CacheEvict` | MySQL first, then the record is stored in Redis and the cached list is cleared | MySQL generates the id and runs the checks (overlap, duplicates) |
+| **Delete** | `@CacheEvict` | MySQL first, then the record and the list are removed from Redis | Redis never shows deleted data |
+| **Student / computer change** | `@CacheEvict` | The reservation cache is also cleared | The reservation view contains student and computer fields |
+| **Photo upload** | | HDFS, then MySQL (file name), then the caches above | The file must exist before its name is saved |
 
-Note: a pending update lives only in Redis until the next flush (at most 30 seconds).
+Redis keys: `reservations::all`, `reservation::<id>`, `students::all`, `student::<id>`,
+`computers::all`, `computer::<id>`. Values are stored with Java serialization, so they are not human readable.
 
 ## Useful commands
 
 ```bash
-docker exec pro2-redis redis-cli keys "*"                    # list Redis keys
-docker exec pro2-redis redis-cli ttl reservation:view        # remaining TTL (seconds)
-docker exec pro2-redis redis-cli hgetall reservation:pending # updates waiting for MySQL
-docker exec pro2-redis redis-cli del reservation:view        # force a cache miss
-docker exec pro2-namenode hdfs dfs -ls /user/hadoop/images   # photos in HDFS
+docker exec pro2-redis redis-cli keys "*"                      # list Redis keys
+docker exec pro2-redis redis-cli ttl "reservations::all"       # remaining TTL (seconds)
+docker exec pro2-redis redis-cli del "reservations::all"       # force a cache miss
+docker exec -it pro2-redis redis-cli monitor                   # watch Redis commands live
+docker exec pro2-namenode hdfs dfs -ls /user/hadoop/images     # photos in HDFS
 ```
+
+A cache miss is logged as `CACHE MISS ...` followed by a `Hibernate: select ...` line.
+On a cache hit nothing is logged and no SQL runs.
 
 On Git Bash (Windows) put `MSYS_NO_PATHCONV=1` before the `hdfs` command, otherwise the path is rewritten.
 Other addresses: HDFS web UI http://localhost:9870 (browse `/user/hadoop/images`), MySQL on `localhost:3307`.

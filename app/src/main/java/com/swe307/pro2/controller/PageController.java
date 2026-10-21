@@ -7,16 +7,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import com.swe307.pro2.service.ComputerService;
 import com.swe307.pro2.service.ReservationService;
-import com.swe307.pro2.service.StudentCache;
+import com.swe307.pro2.service.StudentService;
 
 @Controller
 public class PageController {
 
     private final ReservationService _reservations;
     private final ComputerService _computers;
-    private final StudentCache _students;
+    private final StudentService _students;
 
-    public PageController(ReservationService reservations, ComputerService computers, StudentCache students) {
+    public PageController(ReservationService reservations, ComputerService computers, StudentService students) {
         _reservations = reservations;
         _computers = computers;
         _students = students;

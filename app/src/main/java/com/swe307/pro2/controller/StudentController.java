@@ -15,25 +15,27 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.swe307.pro2.model.Student;
 import com.swe307.pro2.repository.StudentRepository;
-import com.swe307.pro2.service.ReservationService;
-import com.swe307.pro2.service.StudentCache;
+import com.swe307.pro2.service.StudentService;
 
 @RestController
 public class StudentController {
 
     private final StudentRepository _repo;
-    private final ReservationService _reservations;
-    private final StudentCache _cache;
+    private final StudentService _service;
 
-    public StudentController(StudentRepository repo, ReservationService reservations, StudentCache cache) {
+    public StudentController(StudentRepository repo, StudentService service) {
         _repo = repo;
-        _reservations = reservations;
-        _cache = cache;
+        _service = service;
     }
 
     @GetMapping("/api/students")
     public List<Student> all() {
-        return _cache.findAll();
+        return _service.findAll();
+    }
+
+    @GetMapping("/api/students/{id}")
+    public ResponseEntity<Student> one(@PathVariable Long id) {
+        return _service.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/api/students")
@@ -70,20 +72,16 @@ public class StudentController {
             return ResponseEntity.notFound().build();
         }
         try {
-            _repo.deleteById(id);
+            _service.delete(id);
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(409).body("Bu ogrencinin rezervasyonu var, once rezervasyonlarini silin");
         }
-        _cache.remove(id);
-        _reservations.clearView();
         return ResponseEntity.noContent().build();
     }
 
     private ResponseEntity<?> save(Student s, boolean created) {
         try {
-            Student saved = _repo.save(s);
-            _cache.put(saved);           // once MySQL, sonra Redis
-            _reservations.clearView();   // rezervasyon listesindeki ad/bolum eski kalmasin
+            Student saved = _service.save(s);
             return created
                     ? ResponseEntity.created(URI.create("/api/students/" + saved.getId())).body(saved)
                     : ResponseEntity.ok(saved);
@@ -92,6 +90,7 @@ public class StudentController {
         }
     }
 
+    // null: sorun yok. Dolu: dondurulecek hata
     private ResponseEntity<?> check(Student s, Long selfId) {
         if (isBlank(s.getFirstName()) || isBlank(s.getLastName())
                 || isBlank(s.getDepartment()) || isBlank(s.getStudentNumber())) {

@@ -15,25 +15,27 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.swe307.pro2.model.Computer;
 import com.swe307.pro2.repository.ComputerRepository;
-import com.swe307.pro2.service.ComputerCache;
-import com.swe307.pro2.service.ReservationService;
+import com.swe307.pro2.service.ComputerService;
 
 @RestController
 public class ComputerController {
 
     private final ComputerRepository _repo;
-    private final ReservationService _reservations;
-    private final ComputerCache _cache;
+    private final ComputerService _service;
 
-    public ComputerController(ComputerRepository repo, ReservationService reservations, ComputerCache cache) {
+    public ComputerController(ComputerRepository repo, ComputerService service) {
         _repo = repo;
-        _reservations = reservations;
-        _cache = cache;
+        _service = service;
     }
 
     @GetMapping("/api/computers")
     public List<Computer> all() {
-        return _cache.findAll();
+        return _service.findAll();
+    }
+
+    @GetMapping("/api/computers/{id}")
+    public ResponseEntity<Computer> one(@PathVariable Long id) {
+        return _service.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/api/computers")
@@ -69,20 +71,16 @@ public class ComputerController {
             return ResponseEntity.notFound().build();
         }
         try {
-            _repo.deleteById(id);
+            _service.delete(id);
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(409).body("Bu bilgisayarin rezervasyonu var, once rezervasyonlarini silin");
         }
-        _cache.remove(id);
-        _reservations.clearView();
         return ResponseEntity.noContent().build();
     }
 
     private ResponseEntity<?> save(Computer c, boolean created) {
         try {
-            Computer saved = _repo.save(c);
-            _cache.put(saved);           // once MySQL, sonra Redis
-            _reservations.clearView();   // rezervasyon listesindeki marka/model eski kalmasin
+            Computer saved = _service.save(c);
             return created
                     ? ResponseEntity.created(URI.create("/api/computers/" + saved.getId())).body(saved)
                     : ResponseEntity.ok(saved);
@@ -91,6 +89,7 @@ public class ComputerController {
         }
     }
 
+    // null: sorun yok. Dolu: dondurulecek hata
     private ResponseEntity<?> check(Computer c, Long selfId) {
         if (isBlank(c.getBrand()) || isBlank(c.getModel()) || isBlank(c.getSerialNumber())) {
             return ResponseEntity.badRequest().body("Marka, model ve seri numarasi zorunlu");

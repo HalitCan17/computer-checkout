@@ -31,6 +31,11 @@ public class ReservationController {
         return _service.findAll();
     }
 
+    @GetMapping("/api/reservations/{id}")
+    public ResponseEntity<ReservationDto> one(@PathVariable Long id) {
+        return _service.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/api/reservations")
     public ResponseEntity<?> create(@RequestBody ReservationCreateDto dto) {
         try {

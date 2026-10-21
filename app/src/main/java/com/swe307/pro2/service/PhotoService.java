@@ -17,14 +17,12 @@ public class PhotoService {
 
     private final HdfsService _hdfs;
     private final StudentRepository _students;
-    private final ReservationService _reservations;
-    private final StudentCache _cache;
+    private final StudentService _studentService;
 
-    public PhotoService(HdfsService hdfs, StudentRepository students, ReservationService reservations, StudentCache cache) {
+    public PhotoService(HdfsService hdfs, StudentRepository students, StudentService studentService) {
         _hdfs = hdfs;
         _students = students;
-        _reservations = reservations;
-        _cache = cache;
+        _studentService = studentService;
     }
 
     // Ogrenci yoksa Optional.empty(); basariliysa yeni dosya adini doner
@@ -47,9 +45,7 @@ public class PhotoService {
 
         _hdfs.upload(newName, file.getBytes());                       // 1) resim HDFS'e
         student.setPhoto(newName);
-        _students.save(student);                                      // 2) dosya adi MySQL'e
-        _cache.put(student);                                          // ogrenci listesi (Redis) guncellenir
-        _reservations.refreshStudentPhoto(studentId, newName);        // 3) Redis'teki satirlar guncellenir
+        _studentService.save(student);                                // 2) dosya adi MySQL'e, sonra Redis'e
 
         if (oldName != null && oldName.startsWith("student-")) {      // sadece kendi yukledigimiz eski dosyayi sil
             _hdfs.delete(oldName);

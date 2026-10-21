@@ -2,10 +2,10 @@ package com.swe307.pro2;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.cache.annotation.EnableCaching;
 
 @SpringBootApplication
-@EnableScheduling 
+@EnableCaching
 public class Pro2Application {
 
 	public static void main(String[] args) {

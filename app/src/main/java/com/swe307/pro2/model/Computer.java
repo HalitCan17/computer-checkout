@@ -1,5 +1,7 @@
 package com.swe307.pro2.model;
 
+import java.io.Serializable;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -13,7 +15,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "computers")
-public class Computer {
+public class Computer implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

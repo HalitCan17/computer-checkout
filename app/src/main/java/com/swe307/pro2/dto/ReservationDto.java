@@ -1,5 +1,6 @@
 package com.swe307.pro2.dto;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 public record ReservationDto(
@@ -16,5 +17,5 @@ public record ReservationDto(
     String serialNumber,
     LocalDateTime reservationDate,
     LocalDateTime returnDate
-) {
+) implements Serializable {
 }
